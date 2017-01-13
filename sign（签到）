@@ -1,0 +1,159 @@
+/**
+     * 用户签到
+     */
+    public function sign()
+    {
+        $user_id = verify_id($this->userid);
+
+        if (!empty($user_id)) {
+            $this->load->model('M_sign');
+            $data = array();
+            $data_now = array();
+            $where = array();
+            $where['user_id'] = $user_id;
+            $sign_info = $this->M_sign->query_one($where);
+            if (empty($sign_info)) { //初始化签到数据
+                $where['integral'] = 2;
+                $where['sign_days'] = 1;
+                $where['sign_time'] = date('Y-m-d');
+                $insert_sign = $this->M_sign->query_insert($where);
+                //将积分同步到zero_user表中
+                $update_user_integral = $this->M_user->update_integral($user_id,$where['integral']);
+                if ($insert_sign) {
+                    //返回信息，本次签到添加积分数，连续签到天数，总积分
+                    $data_now['sign_integral'] = 2;
+                    $data_now['sign_days'] = 1;
+                    $data_now['integral'] = 2;
+                    $data_now['user_id'] = $user_id;
+                    //转换数据格式，写入log日志
+                    $data_log = json_encode($data_now);
+                    write_sign_log(date('Y-m-d H:i:s') .'[integral_log]'.'['. $data_log.']');
+                    PJsonMsg('0', lang('success'), $data_now);
+                } else {
+                    PJsonMsg('-1', lang('server_error'));
+                }
+            } else if (!empty($sign_info)) { //已有签到记录
+                $now = date('Y-m-d');
+                $sign = $this->M_sign->query_one($where);
+                $sign_integral = $sign[0]['integral'];
+                $sign_days = $sign[0]['sign_days'];
+                $sign_time = $sign[0]['sign_time'];
+                //获取两天天数差
+                $diff = $this->M_sign->diffBetweenTwoDays($now, $sign_time);
+                if ($diff == 0) {  //天数差为零，当天已经签到
+                    PJsonMsg('1', lang('already_sign'));
+                } elseif ($diff == 1) { //天数差为1，当天没有签到
+                    if ($sign_days == 1) { //连续签到天数等于1时，为第二次签到，积分+3，积分天数+1，更新签到时间
+                        $sign_time = $now;
+                        $data['integral'] = $sign_integral + 3;
+                        $data['sign_days'] = ++$sign_days;
+                        $data['sign_time'] = $sign_time;
+                        $update_sign = $this->M_sign->query_update($data, $where);
+                        $update_user_integral = $this->M_user->update_integral($user_id,$data['integral']);
+                        if ($update_sign) {
+                            //查询本次签到后的信息
+                            $sign_info_now = $this->M_sign->query_one($where);
+                            $data_now['sign_integral'] = 3;
+                            $data_now['sign_days'] = $sign_info_now[0]['sign_days'];
+                            $data_now['integral'] = $sign_info_now[0]['integral'];
+                            $data_now['user_id'] = $user_id;
+                            //转换数据格式，写入log日志
+                            $data_log  = json_encode($data_now);
+                            write_sign_log(date('Y-m-d H:i:s') .'[integral_log]'.'['. $data_log.']');
+                            PJsonMsg('0', lang('success'), $data_now);
+                        } else {
+                            PJsonMsg('-1', lang('server_error'));
+                        }
+                    } elseif ($sign_days == 2) { //连续签到天数等于2时，此次签到为第三次次签到，积分+4，积分天数+1，更新签到时间
+                        $sign_time = $now;
+                        $data['integral'] = $sign_integral + 4;
+                        $data['sign_days'] = ++$sign_days;
+                        $data['sign_time'] = $sign_time;
+                        $update_sign = $this->M_sign->query_update($data, $where);
+                        $update_user_integral = $this->M_user->update_integral($user_id,$data['integral']);
+                        if ($update_sign) {
+                            //查询本次签到后的信息
+                            $sign_info_now = $this->M_sign->query_one($where);
+                            $data_now['sign_integral'] = 4;
+                            $data_now['sign_days'] = $sign_info_now[0]['sign_days'];
+                            $data_now['integral'] = $sign_info_now[0]['integral'];
+                            $data_now['user_id'] = $user_id;
+                            //转换数据格式，写入log日志
+                            $data_log  = json_encode($data_now);
+                            write_sign_log(date('Y-m-d H:i:s') .'[integral_log]'.'['. $data_log.']');
+                            PJsonMsg('0', lang('success'), $data_now);
+                        } else {
+                            PJsonMsg('-1', lang('server_error'));
+                        }
+                    } elseif ($sign_days == 3) { //连续签到天数等于3时，此次签到为第四次次签到，积分+5，积分天数+1，更新签到时间
+                        $sign_time = $now;
+                        $data['integral'] = $sign_integral + 5;
+                        $data['sign_days'] = ++$sign_days;
+                        $data['sign_time'] = $sign_time;
+                        $update_sign = $this->M_sign->query_update($data, $where);
+                        $update_user_integral = $this->M_user->update_integral($user_id,$data['integral']);
+                        if ($update_sign) {
+                            //查询本次签到后的信息
+                            $sign_info_now = $this->M_sign->query_one($where);
+                            $data_now['sign_integral'] = 5;
+                            $data_now['sign_days'] = $sign_info_now[0]['sign_days'];
+                            $data_now['integral'] = $sign_info_now[0]['integral'];
+                            $data_now['user_id'] = $user_id;
+                            //转换数据格式，写入log日志
+                            $data_log = json_encode($data_now);
+                            write_sign_log(date('Y-m-d H:i:s') .'[integral_log]'.'['. $data_log.']');
+                            PJsonMsg('0', lang('success'), $data_now);
+                        } else {
+                            PJsonMsg('-1', lang('server_error'));
+                        }
+
+                    } elseif ($sign_days >= 4) { //连续签到天数等于4时，为第五天签到，此次签到和以后签到，积分+5，积分天数+1，更新签到时间
+                        $sign_time = $now;
+                        $data['integral'] = $sign_integral + 5;
+                        $data['sign_days'] = ++$sign_days;
+                        $data['sign_time'] = $sign_time;
+                        $update_sign = $this->M_sign->query_update($data, $where);
+                        $update_user_integral = $this->M_user->update_integral($user_id,$data['integral']);
+                        if ($update_sign) {
+                            //查询本次签到后的信息
+                            $sign_info_now = $this->M_sign->query_one($where);
+                            $data_now['sign_integral'] = 5;
+                            $data_now['sign_days'] = $sign_info_now[0]['sign_days'];
+                            $data_now['integral'] = $sign_info_now[0]['integral'];
+                            $data_now['user_id'] = $user_id;
+                            //转换数据格式，写入log日志
+                            $data_log = json_encode($data_now);
+                            write_sign_log(date('Y-m-d H:i:s') .'[integral_log]'.'['. $data_log.']');
+                            PJsonMsg('0', lang('success'), $data_now);
+                        } else {
+                            PJsonMsg('-1', lang('server_error'));
+                        }
+                    }
+                }elseif ($diff > 1) { //天数差大于1时，此次签到积分加2，签到天数重置为1，更新签到时间
+                    $sign_time = $now;
+                    $data['integral'] = $sign_integral + 2;
+                    $data['sign_days'] = 1;
+                    $data['sign_time'] = $sign_time;
+                    $update_sign = $this->M_sign->query_update($data, $where);
+                    $update_user_integral = $this->M_user->update_integral($user_id,$data['integral']);
+                    if ($update_sign) {
+                        //查询本次签到后的信息
+                        $sign_info_now = $this->M_sign->query_one($where);
+                        $data_now['sign_integral'] = 2;
+                        $data_now['sign_days'] = $sign_info_now[0]['sign_days'];
+                        $data_now['integral'] = $sign_info_now[0]['integral'];
+                        $data_now['user_id'] = $user_id;
+                        //转换数据格式，写入log日志
+                        $data_log = json_encode($data_now);
+                        write_sign_log(date('Y-m-d H:i:s') .'[integral_log]'.'['. $data_log.']');
+                        PJsonMsg('0', lang('success'), $data_now);
+                    } else {
+                        PJsonMsg('-1', lang('server_error'));
+                    }
+                }
+
+            }
+
+        }
+
+    }
