@@ -1,0 +1,71 @@
+    /**
+     * 换一换接口
+     */
+    public function change()
+    {
+        $category_id = getParam($this->input->get_post('category_id'), 'int');
+        //初始为0
+        $num = $this->input->get_post('num');
+        $offset = $num * 3;  //偏移量
+        $limit = 3;          //取三个
+        $where = array();
+        $where['cid'] = $category_id;
+        $where['offset'] = $offset;
+        $where['limit'] = $limit;
+        $this->load->model('M_category_game');
+        $games = $this->M_category_game->game_list($where); //获取该栏目下的所有游戏
+        $count = count($games);  //得到该栏目下的游戏总量
+
+        $data = $this->M_category_game->game_result($where);
+        $co = count($data); //条件加上limit之后游戏数量
+        if ($co == 3 && $count > 3) {  //如果limit后==3，总量大于三那么就刚好，偏移量加一
+            $result = array(
+                'status' => "0",
+                'num'    =>$num+1,
+                'content' => $data
+            );
+            PJsonMsg('0', lang('success'), $result);
+        } elseif ($co < 3) { //如果limit后小于三那么就拿前面的补上
+            $data1 = $this->M_category_game->game_result($where);
+            $diff = 3 - $co;
+            $where['offset'] = 0;
+            $where['limit'] = $diff;
+            $data2 = $this->M_category_game->game_result($where);
+            $data = array_merge($data1,$data2);
+            $result = array(
+                'status' => "1",
+                'num'    => 0,
+                'content' => $data
+            );
+            PJsonMsg('0', lang('success'), $result);
+        }elseif ($co == 3 && $count == 3) { //如果总量等于三limit后结果也等于三那么就是种显示这三个结果，并且重置点击次数，下次点击还是这三条数据
+            $data = $this->M_category_game->game_result($where);
+            $result = array(
+                'status' => "1",
+                'num'    => 0,
+                'content' => $data
+            );
+            PJsonMsg('0', lang('success'), $result);
+        }
+    }
+
+    //查询语句
+    public function game_list($where){
+        $sql = "select cg.game_id,cg.game_sort,tg.name as game_name,CONCAT('".config_item('image_url')."',tg.icon_img) AS icon,CONCAT('".config_item('image_url')."',tg.propaganda_img) AS propaganda,tg.blurb from `category_and_game` AS cg
+                      LEFT JOIN `t_category` AS tc ON cg.category_id = tc.id
+                      LEFT JOIN `t_game` as tg ON cg.game_id = tg.id
+                      WHERE cg.category_id = {$where['cid']} and tc.status = 2
+                      order by cg.game_sort ASC
+                    ";
+        return $this->exec($sql);
+    }
+
+    public function game_result($where){
+        $sql = "select cg.game_id,cg.game_sort,tg.name as game_name,CONCAT('".config_item('image_url')."',tg.icon_img) AS icon,CONCAT('".config_item('image_url')."',tg.propaganda_img) AS propaganda,tg.blurb from `category_and_game` AS cg
+                      LEFT JOIN `t_category` AS tc ON cg.category_id = tc.id
+                      LEFT JOIN `t_game` as tg ON cg.game_id = tg.id
+                      WHERE cg.category_id = {$where['cid']} and tc.status = 2
+                      order by cg.game_sort ASC limit {$where['offset']},{$where['limit']}
+                    ";
+        return $this->exec($sql);
+    }
