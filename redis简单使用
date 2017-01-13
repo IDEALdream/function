@@ -1,0 +1,54 @@
+public function index()
+    {
+        $os = $this->os;
+        $os = 1;
+        if (!$os) {
+            PJsonMsg('-1', lang('no_os'));
+        }
+        $where = array();
+        $where['os'] = $os;
+        $redis = new Redis();
+        //$connect = $redis->connect('10.253.15.165', 6380);
+        $connect = $redis->connect('127.0.0.1',6379);
+        if (!$connect) {
+            exit(result_to_towf_new("", 0, "redis链接失败", null));
+        }
+        if ($os == "1") {
+            $key = "android";
+        } elseif ($os == "2") {
+            $key = "ios";
+        }
+
+        //判断key是否存在 redis
+        if(!$redis->exists($key)){
+            //不存在,查询db
+            $data =array();
+            $this->load->model('M_category_game');
+            $data = $this->M_category_game->query_index($where);
+            //数组转json
+            $j_data = json_encode($data);
+            //结果set redis
+            $redis->set($key, $j_data);
+            $j_data = $redis->get($key);
+            //关闭数据库链接
+            $redis->close();
+            $res = json_decode($j_data);
+            $result = array(
+                'os'    =>$os,
+                'content' => $res
+            );
+            PJsonMsg('0', lang('success'), $result);
+
+        }else{
+            //存在；
+            $j_data = $redis->get($key);
+            //关闭数据库链接
+            $redis->close();
+            $res = json_decode($j_data);
+            $result = array(
+                'os'    =>$os,
+                'content' => $res
+            );
+            PJsonMsg('0', lang('success'), $result);
+        }
+    }
